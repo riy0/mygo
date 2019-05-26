@@ -1,0 +1,94 @@
+package main
+
+import (
+  "fmt"
+  "database/sql"
+  "log"
+  "github.com/tenntenn/sqlite"
+)
+
+type Item struct {
+  ID int
+	Category string
+	Price int
+}
+
+func main() {
+  db, err := sql.Open(sqlite.DriverName, "homeaccountbook.db")
+  if err != nil{
+    log.Fatal(err)
+  }
+
+  if err := createTable(db); err != nil{
+    log.Fatal(err)
+  }
+
+  var n int
+  fmt.Print("How many things you bought??")
+  fmt.Scan(&n)
+
+  for i := 0; i< n; i++{
+    if err := inputItem(db); err != nil{
+      log.Fatal(err)
+    }
+  }
+
+  if err := showItems(db); err != nil{
+    log.Fatal(err)
+  }
+}
+
+func inputItem(db *sql.DB) error{
+	var item Item
+
+	fmt.Print("Category>")
+	fmt.Scan(&item.Category)
+	fmt.Print("Price>")
+	fmt.Scan(&item.Price)
+
+  const sqlStr = `INSERT INTO items(category, price) VALUES (?,?);`
+  _, err := db.Exec(sqlStr, item.Category, item.Price)
+  if err != nil{
+    return err
+  }
+  return nil
+}
+
+func showItems( db *sql.DB) error{
+
+    const sqlStr = `SELECT * FROM items`
+    rows, err := db.Query(sqlStr)
+    if err != nil{
+      return err
+    }
+    defer rows.Close()
+
+    for rows.Next(){
+      var item Item
+
+      err := rows.Scan(&item.ID, &item.Category, &item.Price)
+      if err != nil{
+        return err
+      }
+      fmt.Printf("[%04d] %s：%d円 \n", item.ID, item.Category, item.Price)
+    }
+
+    if err := rows.Err(); err != nil{
+      return err
+    }
+    return nil
+
+}
+
+func createTable(db *sql.DB) error{
+  const sqlStr = ` CREATE TABLE IF NOT EXISTS items(
+                  id INTEGER PRIMARY KEY,
+                  category TEXT NOT NULL,
+                  price INTEGER NOT NULL
+                );`
+  _, err := db.Exec(sqlStr)
+  if err != nil{
+    return err
+  }
+  return nil
+}
